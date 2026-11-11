@@ -4,7 +4,7 @@ const el_capitan = g_obj(i_el_capitan).start();
 
 const t_el_capitan = g_touch(i_el_capitan).start();
 
-t_el_capitan.starts(go_to.bind(null, "el_capitan/"));
+t_el_capitan.starts(go_to.bind(null, "/el_capitan/"));
 
 /*
 const left          = g_obj(i_left);

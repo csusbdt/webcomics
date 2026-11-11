@@ -1,0 +1,37 @@
+:root {
+    --white       : #FAF9F6; 
+    --red         : #FFCCCB; 
+    --green       : #CBFFCC;
+    --blue        : #CBCCFF;
+    --yellow      : #FFFFCB;
+    --cyan        : #CBFFFF;
+    --magenta     : #FFCBFF;
+    --medium_grey : #9A9A9A;
+    --light_grey  : #CCCCCC;
+    --black       : #4C4C4C;
+}
+img {
+    display: none;
+}
+/* Remove default margins and hide scrollbars if the canvas fills the screen */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--white);    
+    /* Center the canvas both horizontally and vertically */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+}
+
+#g_canvas {
+    padding: 0;
+    margin: 0;
+    /* Keep the 16:9 aspect ratio responsive on smaller laptop screens */
+    max-width: 100%;
+    max-height: 100vh;
+    object-fit: contain;
+}

@@ -36,7 +36,7 @@ window.assert = (condition, message) => {
 
 window.go_to = page => {
 	if (location.pathname.indexOf("/webcomics") === 0) {
-		location = "/webcomics" + page + location.search;
+		location = "https://csusbdt.github.io/webcomics/" + page + location.search;
 	} else {
 		location = page + location.search;
 	}

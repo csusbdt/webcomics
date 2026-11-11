@@ -27,7 +27,7 @@ g_start_touches = _ => {
   else if (pause_opened.started()) t_pause.start();
 };
 
-t_back.starts(go_to.bind(null, "/../"));
+t_back.starts(go_to.bind(null, "/"));
 
 // volume
 

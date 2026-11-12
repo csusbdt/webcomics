@@ -28,6 +28,8 @@ window.g_start_touches = null; // If not null, called when touchables are cleare
 ctx.fillStyle = bg_color;
 ctx.fillRect(0, 0, g_canvas.width, g_canvas.height);
 
+//window.delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 window.assert = (condition, message) => {
 	if (!condition) {
 		throw new Error(message || "Assertion failed");
@@ -42,9 +44,9 @@ window.go_to = page => {
 	}
 };
 
-window.log = function(...args) {
-	args.forEach(arg => console.log(arg));
-};
+// window.log = function(...args) {
+// 	args.forEach(arg => console.log(arg));
+// };
 
 window.add_drawable = function(o) {
 	if (!('z_index' in o)) throw new Error(o);
@@ -454,7 +456,6 @@ c_touch.prototype.touch = function(p) {
 			clear_touchables();
 			stop_stop_sets(this.stop_set);
 			start_start_sets(this.start_set);
-			if (g_start_touches !== null) g_start_touches();
 			return true;
 		}
 	}
@@ -498,7 +499,7 @@ const pointerup = e => {
 	on_touch(canvas_coords(e));
 };
 
-window.addEventListener('pointerup', pointerup, true);
+window.addEventListener('pointerup', pointerup);
 
 ///////////////////////////////////////////////////////////////////////////////
 //

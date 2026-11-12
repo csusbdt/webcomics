@@ -3,7 +3,7 @@ import "../canvasapp.js";
 const vols = g_objs([i_vol_0, i_vol_1, i_vol_2, i_vol_3, i_vol_4, i_vol_5, i_vol_6]);
 
 const back          = g_obj(i_back);
-const play_opened   = g_obj(i_play_2).start();
+const play_opened   = g_obj(i_play_2);
 const pause_opened  = g_obj(i_pause_2);
 
 const play_opening  = g_once(g_objs([i_play_1]));
@@ -19,7 +19,7 @@ const t_pause       = g_touch(i_pause_2);
 const t_vol_up      = g_touch(i_vol_up );
 const t_vol_dn      = g_touch(i_vol_dn );
 
-g_start_touches = _ => {
+const start_touches = _ => {
   if (back.started()) t_back.start();
   if (vol_i + 1 < vols.length) t_vol_up.start();
   if (vol_i     > 0          ) t_vol_dn.start();
@@ -31,73 +31,96 @@ t_back.starts(go_to.bind(null, "/"));
 
 // volume
 
+const max_play_bop_gain  = .6;
+const max_play_thud_gain = .8;
+
 let vol_i = null;
+
+const update_volume = _ => {
+  g_music.volume   = Math.pow(vol_i / vols.length, 2);
+  g_play_bop_gain  = Math.pow(vol_i / vols.length * max_play_bop_gain, 2);
+  g_play_thud_gain = Math.pow(vol_i / vols.length * max_play_thud_gain, 2);
+};
 
 t_vol_up.starts(_ => {
   vols[vol_i++].stop();
   vols[vol_i].start();
   set("vol_i", vol_i);
-  music.set_volume(vol_i, vols.length);
+  update_volume();
+  start_touches();
 });
 
 t_vol_dn.starts(_ => {
   vols[vol_i--].stop();
   vols[vol_i].start();
   set("vol_i", vol_i);
-  music.set_volume(vol_i, vols.length);
+  update_volume();
+  start_touches();
 });
 
-t_vol_dn.stops(vols[vol_i--]);
-
-// music
-
-const on_playing = e => {
-  waiting.stop();
-    pause_opening.start();
-    g_start_touches();
-};
-
-const on_end = e => {
-	clear_touchables();
-    pause_opened.stop();
-    play_opening.start();
-};
+// not yet needed.  maybe never needed.
+// g_music.addEventListener('ended', (event) => {
+//   clear_touchables();
+//   pause_opened.stop();
+//   play_opening.start();
+// });
 
 let timeupdate = 0;
 
-const on_timeupdate = e => {
-  timeupdate = e;
+// Respond to pause events from external processes.
+// Also, pause fires when playout ends.
+g_music.addEventListener('pause', _ => {
+  clear_touchables();
+  pause_opened.stop();
+  pause_closing.start();
+});
+
+const play_music =  _ => {
+  g_music.play()
+    .then(() => {
+      waiting.stop();
+      pause_opening.start();
+    })
+    .catch((error) => {
+      console.error('Playback failed:', error);
+      waiting.stop();
+      play_opening.start();
+    });
 };
 
-const music = g_music("el_capitan.mp3", 3, 1, on_playing, on_end, on_timeupdate);
-
+play_opening.starts(play_opened, start_touches);
 t_play.stops(play_opened).starts(play_closing);
-play_closing.starts(waiting, music);
-pause_opening.starts(pause_opened, g_start_touches);
-t_pause.stops(pause_opened, music).starts(pause_closing);
+play_closing.starts(waiting, play_music);
+pause_opening.starts(pause_opened, start_touches);
+t_pause.stops(pause_opened).starts(pause_closing, g_music.pause.bind(g_music));
 pause_closing.starts(play_opening);
-play_opening.starts(play_opened, g_start_touches);
 
 if (location.search.indexOf("a") !== -1) {
-  log("links enabled");
   back.start();
 }
 
 if (location.search.indexOf("d") !== -1) {
-  log("developer mode enabled");
+  console.log("developer mode enabled");
   document.addEventListener("keydown", (event) => {
-    log(event.key + "  " + timeupdate);
+    console.log(event.key + "  " + g_music.currentTime);
   });
 }
 
 if (get("vol_i") === null) {
-  vol_i = Math.floor(vols.length / 2);
+  vol_i = Math.floor(vols.length / 2); // TODO: get global volume
   set("vol_i", vol_i);
 }
 vol_i = get("vol_i");
 vols[vol_i].start();
-music.set_volume(vol_i, vols.length);
-g_start_touches();
+
+update_volume();
+
+// g_music.volume = Math.pow(vol_i / vols.length, 2);
+// g_play_bop_gain  = Math.pow(vol_i / vols.length * max_play_bop_gain, 2);
+// g_play_thud_gain = Math.pow(vol_i / vols.length * max_play_thud_gain, 2);
+
+play_opening.start();
+start_touches();
 
 
 /*

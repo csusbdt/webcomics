@@ -1,15 +1,37 @@
-window.g_is_music_started = false;
+//window.g_is_music_started = false;
 
-let audio_context = null;
+const audio_context = new (window.AudioContext || window.webkitAudioContext)();
 
-const init_audio = _ => {
-	if (!audio_context) {
-		audio_context = new (window.AudioContext || window.webkitAudioContext)();
+function resume_audio() {
+	if (audio_context.state === "suspended") {
+		audio_context.resume().then(() => {
+		});
 	}
-	if (audio_context.state === 'suspended') {
-		audio_context.resume();
-	}
-};
+}
+
+window.addEventListener('pointerup', resume_audio);
+
+// const init_audio = _ => {
+// 	if (!audio_context) {
+// 		audio_context = new (window.AudioContext || window.webkitAudioContext)();
+// 	}
+// 	if (audio_context.state === 'suspended') {
+// 		audio_context.resume();
+// 	}
+// };
+
+// function unlockAudio() {
+// 	if (audioCtx.state === "suspended") {
+// 		audioCtx.resume().then(() => {
+// 			// Remove listeners once the audio context is unlocked
+// 			document.removeEventListener("click", unlockAudio);
+// 			document.removeEventListener("touchstart", unlockAudio);
+// 			document.removeEventListener("keydown", unlockAudio);
+// 		});
+// 	}
+// }
+// document.addEventListener("pointerup", unlockAudio);
+
 
 /////////////////////////////////////////////////////////////////////////////////////
 //
@@ -36,6 +58,8 @@ const init_audio = _ => {
 // 	source.start(t);
 // }
 
+/*
+
 /////////////////////////////////////////////////////////////////////////////////////
 //
 // c_music
@@ -45,46 +69,46 @@ const init_audio = _ => {
 // ffmpeg -i input.mp3 -ar 32000 -c:a libmp3lame -q:a 4 el_capitan.mp3
 // fmpeg -i el_capitan_org.mp3 -ar 22050 -c:a libmp3lame -q:a 6 el_capitan.mp3
 
-function c_music(file, start_time, volume, on_playing, on_end, on_timeupdate) {
-	init_audio();
-	this.audio_element = new Audio();
-	this.stream_source = audio_context.createMediaElementSource(this.audio_element);	
-	this.on_end = on_end;
-	this.on_playing = on_playing;
-	this.on_timeupdate = on_timeupdate;
-	this.audio_element.volume = volume;
-	this.start_time = start_time;
-	this.audio_element.currentTime = start_time;
-    fetch(file)
-        .then(response => response.blob())
-        .then(blob => {
-            this.audio_element.src = URL.createObjectURL(blob);
-         })
-         .catch(e => log(e));
-	if (this.on_playing !== null) {
-		this.audio_element.addEventListener('playing', e => {
-			this.on_playing(); 
-		});
-	}
-	this.audio_element.addEventListener('ended', e => {
-		if (this.on_end !== null) {
-			g_is_music_started = false;
-			this.audio_element.currentTime = this.start_time;
-			if (this.on_end !== null) this.on_end();
-		}
+function c_music(file, start_time, volume, on_ready, on_start, on_fail, on_pause, on_end, on_timeupdate) {
+  this.on_ready      = on_ready      ;
+  this.on_start      = on_start      ;
+  this.on_fail       = on_fail       ;	
+  this.on_pause      = on_pause      ;
+  this.on_end        = on_end        ; // omit and test, et al
+  this.on_timeupdate = on_timeupdate ;
+
+  init_audio();
+  this.audio_element = new Audio();
+  this.stream_source = audio_context.createMediaElementSource(this.audio_element);
+  this.stream_source.connect(audio_context.destination);
+  this.audio_element.volume      = volume;
+  this.start_time                = start_time;
+  this.audio_element.currentTime = start_time;
+
+  this.audio_element.addEventListener('error', e => {
+    this.on_end();
+    console.error("c_music.audio_element: ", error);
+  });
+
+  this.audio_element.addEventListener('ended', e => {
+    this.audio_element.removeEventListener('pause', this.on_pause);
+    this.audio_element.currentTime = this.start_time;
+    this.on_end();
+  });
+
+  if (this.on_timeupdate !== null) {
+    this.audio_element.addEventListener('timeupdate', _ => {
+	  this.on_timeupdate(audio_context.currentTime);
 	});
-	if (this.on_timeupdate !== null) {
-		this.audio_element.addEventListener('timeupdate', _ => {
-			this.on_timeupdate(audio_context.currentTime);
-		});
-	}
-	this.audio_element.addEventListener('error', e => {
-		if (this.on_end !== null) {
-			g_is_music_started = false;
-			this.on_end();
-		}
-		g_log('c_music error', file);
-	});
+  }
+
+  fetch(file)
+    .then(response => response.blob())
+    .then(blob => {
+      this.audio_element.src = URL.createObjectURL(blob);
+      this.on_ready();
+    })
+    .catch(e => log(e));
 }
 
 c_music.prototype.set_volume = function(v, max_v) {
@@ -93,31 +117,46 @@ c_music.prototype.set_volume = function(v, max_v) {
 };
 
 c_music.prototype.start = function() {
-	g_is_music_started = true;
-	this.stream_source.connect(audio_context.destination);
-	this.audio_element.play();
+  // In case external process pauses playout:
+  this.audio_element.play()
+	.then(_ => {
+      this.audio_element.addEventListener('pause', this.on_pause);
+      on_start(); 
+	})
+	.catch(error => { 
+      console.error("music.play failed", error);
+      this.audio_element.removeEventListener('pause', this.on_pause);
+      on_fail();
+	});
 };
 
 c_music.prototype.stop = function() {
-	g_is_music_started = false;
-	this.audio_element.pause();
+  this.audio_element.removeEventListener('pause', this.on_pause);
+  this.audio_element.pause();
 };
 
 // c_music.prototype.rewind = function() {
+//  this.audio_element.removeEventListener('pause', this.on_pause);
 // 	this.audio_element.pause();
 // 	this.audio_element.currentTime = this.start_time;	
 // };
 
 window.g_music = function(
-	file, 
-	start_time    = 0    ,
-	volume        = 1.0  ,
-	on_playing    = null ,
-	on_end        = null ,
-	on_timeupdate = null
+	file,
+	start_time = 0   ,
+	volume     = 1.0 ,
+	on_ready         , 
+	on_start         ,
+	on_fail          ,
+	on_pause         ,
+	on_end           ,
+	on_timeupdate
 ) {
-	return new c_music(file, start_time, volume, on_playing, on_end, on_timeupdate);
+	assert(on_end !== undefined);
+	return new c_music(file, start_time, volume, on_ready, on_start, on_fail, on_pause, on_end, on_timeupdate);
 };
+
+*/
 
 /////////////////////////////////////////////////////////////////////////////////////
 //
@@ -125,9 +164,9 @@ window.g_music = function(
 //
 /////////////////////////////////////////////////////////////////////////////////////
 
+window.g_play_bop_gain     = .4;
 window.g_play_bop_duration = 150;
 window.g_play_bop = _ => {
-	init_audio();
 	const oscillator = audio_context.createOscillator();
 	const gainNode   = audio_context.createGain();
 	oscillator.connect(gainNode);
@@ -137,16 +176,18 @@ window.g_play_bop = _ => {
 	oscillator.type  = 'sine'; 
 	oscillator.frequency.setValueAtTime(300, now);
 	oscillator.frequency.exponentialRampToValueAtTime(900, now + duration);
-	gainNode.gain.setValueAtTime(0.4, now);
-	gainNode.gain.setValueAtTime(0.4, now + 0.03);
+	// gainNode.gain.setValueAtTime(0.4, now);
+	// gainNode.gain.setValueAtTime(0.4, now + 0.03);
+	gainNode.gain.setValueAtTime(g_play_bop_gain, now);
+	gainNode.gain.setValueAtTime(g_play_bop_gain, now + 0.03);
 	gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 	oscillator.start(now);
 	oscillator.stop(now + duration);
 }
 
+window.g_play_thud_gain     = 1;
 window.g_play_thud_duration = 150;
 window.g_play_thud = _ => {
-	init_audio();	
 	const oscillator = audio_context.createOscillator();
 	const gainNode   = audio_context.createGain();
 	const startTime  = audio_context.currentTime;
@@ -154,7 +195,8 @@ window.g_play_thud = _ => {
 	oscillator.type         = 'sine';
 	oscillator.frequency.setValueAtTime(130, startTime);
 	oscillator.frequency.exponentialRampToValueAtTime(30, endTime);
-	gainNode.gain.setValueAtTime(1.0, startTime);
+//	gainNode.gain.setValueAtTime(1.0, startTime);
+	gainNode.gain.setValueAtTime(g_play_thud_gain, startTime);
 	gainNode.gain.exponentialRampToValueAtTime(0.001, endTime);
 	oscillator.connect(gainNode);
 	gainNode.connect(audio_context.destination);
@@ -162,9 +204,11 @@ window.g_play_thud = _ => {
 	oscillator.stop(endTime);
 };
 
+// TODO: implement gain
+//window.g_play_boin_gain     = .3;
 window.g_play_boin_duration = 450;
 window.g_play_boin = _ => {
-	init_audio();
+	//init_audio();
 	const osc1  = audio_context.createOscillator();
 	const osc2  = audio_context.createOscillator();
 	const osc3  = audio_context.createOscillator();
@@ -202,9 +246,10 @@ window.g_play_boin = _ => {
 	osc3.stop(time3 + duration3);
 };
 
+// TODDO: implement gain similar to above
 window.g_play_dit_duration = 80;
 window.g_play_dit = _ => {
-	init_audio();
+	//init_audio();
 	const oscillator = audio_context.createOscillator();
 	const gainNode   = audio_context.createGain();
 	oscillator.connect(gainNode);
@@ -220,9 +265,10 @@ window.g_play_dit = _ => {
 	oscillator.stop(now + duration);
 }
 
+// TODDO: implement gain similar to above
 window.g_play_tink_duration = 400;
 window.g_play_tink = _ => {
-	init_audio();
+	//init_audio();
 	const oscillator = audio_context.createOscillator();
 	const gainNode = audio_context.createGain();
 	oscillator.connect(gainNode);

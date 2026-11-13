@@ -19,7 +19,16 @@ const t_pause       = g_touch(i_pause_2);
 const t_vol_up      = g_touch(i_vol_up );
 const t_vol_dn      = g_touch(i_vol_dn );
 
-const start_touches = _ => {
+let vol_i = null;
+
+if (get("vol_i") === null) {
+  vol_i = Math.floor(vols.length / 2); // TODO: get/set global volume
+  set("vol_i", vol_i);
+}
+vol_i = get("vol_i");
+vols[vol_i].start();
+
+const start_touchables = _ => {
   if (back.started()) t_back.start();
   if (vol_i + 1 < vols.length) t_vol_up.start();
   if (vol_i     > 0          ) t_vol_dn.start();
@@ -29,25 +38,40 @@ const start_touches = _ => {
 
 t_back.starts(go_to.bind(null, "/"));
 
-// volume
+waiting.start();
+
+const on_ready = _ => {
+  waiting.stop();
+  play_opening.start();
+};
+
+const on_ended = _ => {
+  clear_touchables();
+  pause_opened.stop();
+  pause_closing.start();
+  start_touchables();
+};
+
+const music = g_music("./el_capitan.mp3", on_ready, on_ended);
+music.load();
 
 const max_play_bop_gain  = .6;
 const max_play_thud_gain = .8;
 
-let vol_i = null;
-
 const update_volume = _ => {
-  g_music.volume   = Math.pow(vol_i / vols.length, 2);
+  music.set_gain(Math.pow(vol_i / vols.length, 2));
   g_play_bop_gain  = Math.pow(vol_i / vols.length * max_play_bop_gain, 2);
   g_play_thud_gain = Math.pow(vol_i / vols.length * max_play_thud_gain, 2);
 };
+
+update_volume();
 
 t_vol_up.starts(_ => {
   vols[vol_i++].stop();
   vols[vol_i].start();
   set("vol_i", vol_i);
   update_volume();
-  start_touches();
+  start_touchables();
 });
 
 t_vol_dn.starts(_ => {
@@ -55,44 +79,16 @@ t_vol_dn.starts(_ => {
   vols[vol_i].start();
   set("vol_i", vol_i);
   update_volume();
-  start_touches();
+  start_touchables();
 });
 
-// not yet needed.  maybe never needed.
-// g_music.addEventListener('ended', (event) => {
-//   clear_touchables();
-//   pause_opened.stop();
-//   play_opening.start();
-// });
+//let timeupdate = 0;
 
-let timeupdate = 0;
-
-// Respond to pause events from external processes.
-// Also, pause fires when playout ends.
-g_music.addEventListener('pause', _ => {
-  clear_touchables();
-  pause_opened.stop();
-  pause_closing.start();
-});
-
-const play_music =  _ => {
-  g_music.play()
-    .then(() => {
-      waiting.stop();
-      pause_opening.start();
-    })
-    .catch((error) => {
-      console.error('Playback failed:', error);
-      waiting.stop();
-      play_opening.start();
-    });
-};
-
-play_opening.starts(play_opened, start_touches);
+play_opening.starts(play_opened, start_touchables);
 t_play.stops(play_opened).starts(play_closing);
-play_closing.starts(waiting, play_music);
-pause_opening.starts(pause_opened, start_touches);
-t_pause.stops(pause_opened).starts(pause_closing, g_music.pause.bind(g_music));
+play_closing.starts(music, pause_opening);
+pause_opening.starts(pause_opened, start_touchables);
+t_pause.stops(pause_opened, music).starts(pause_closing);
 pause_closing.starts(play_opening);
 
 if (location.search.indexOf("a") !== -1) {
@@ -106,21 +102,13 @@ if (location.search.indexOf("d") !== -1) {
   });
 }
 
-if (get("vol_i") === null) {
-  vol_i = Math.floor(vols.length / 2); // TODO: get global volume
-  set("vol_i", vol_i);
-}
-vol_i = get("vol_i");
-vols[vol_i].start();
 
-update_volume();
 
 // g_music.volume = Math.pow(vol_i / vols.length, 2);
 // g_play_bop_gain  = Math.pow(vol_i / vols.length * max_play_bop_gain, 2);
 // g_play_thud_gain = Math.pow(vol_i / vols.length * max_play_thud_gain, 2);
 
-play_opening.start();
-start_touches();
+
 
 
 /*

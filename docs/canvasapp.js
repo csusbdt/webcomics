@@ -499,7 +499,9 @@ const pointerup = e => {
 	on_touch(canvas_coords(e));
 };
 
-window.addEventListener('pointerup', pointerup);
+// Make sure the audio system can capture the event first.
+window.addEventListener('pointerup', pointerup, { capture: false });
+
 
 ///////////////////////////////////////////////////////////////////////////////
 //

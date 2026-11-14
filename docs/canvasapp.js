@@ -545,19 +545,20 @@ window.g_click_test = (images, p) => {
 	return (pixel[0] + pixel[1] + pixel[2] != 0);
 };
 
-let previous_time = new Date().getTime() / 1000;
+window.g_t = g_audio_context.currentTime;
+let previous_time = g_t;
 
 function animation_loop() {
-	const current_time = new Date().getTime() / 1000;
+	g_t      = g_audio_context.currentTime;
+	const dt = g_t - previous_time;
+	updatables.slice().forEach(o => o.update(dt));
+	previous_time = g_t;
 	if (dirty) {
 		ctx.fillStyle = bg_color;
 		ctx.fillRect(0, 0, g_canvas.width, g_canvas.height);
 		drawables.forEach(o => o.draw(ctx));
 		dirty = false;	
 	}
-	let dt = current_time - previous_time;
-	updatables.slice().forEach(o => o.update(dt));
-	previous_time = current_time;
 	requestAnimationFrame(animation_loop);
 }
 
@@ -566,8 +567,105 @@ addEventListener('load', requestAnimationFrame.bind(null, animation_loop));
 
 
 
+// The last start time is the animation end time.
+function c_anim(start_times, images, user_calibration = 0, z_index = g_z) {
+	assert(Array.isArray(start_times)                         );
+	assert(Array.isArray(images)                              );
+	assert(start_times.length === images.length + 1 );
+	this.end_time     = start_times[start_times.length - 1];
+	this.start_times  = start_times;
+	this.images       = images;
+	this.z_index      = z_index;
+	this.latency      =            // graphics render faster than audio
+		g_audio_context.baseLatency   + 
+		g_audio_context.outputLatency + 
+		user_calibration;
+	this.elapsed_time  = 0;    // amount of time played out from the source buffer
+	this.start_time    = null; // the audio context time when current playout started
+	this.index         = null; // null means render time of first image not yet reached
+	this.start_set     = [];
+	this.stop_set      = [];
+}
 
+c_anim.prototype.start = function() {
+	assert(this.start_time === null);
+	this.start_time = g_t;
+	add_updatable(this);
+	return this;
+};
 
+c_anim.prototype.update = function(dt) {
+	if (this.index === null) {
+		if (this.start_time + this.delay + this.start_times[0] < g_t) return;
+		this.index = 0;
+		add_drawable(this);
+	}
+	while (this.start_time + this.latency + this.start_times[this.index + 1] < g_t) {
+		assert(this.index < this.images.length);
+		++this.index;
+		dirty = true;
+		if (this.index === this.images.length) { 
+			// we reached the end
+			this.stop(); 
+			return; 
+		}
+	}
+};
+
+c_anim.prototype.draw = function(ctx) {
+	assert(this.index !== null);
+	const image = this.images[this.index];
+	if (Array.isArray(image)) {
+		image.forEach(image => ctx.drawImage(image, 0, 0));
+	} else {
+		ctx.drawImage(image, 0, 0);
+	}
+};
+
+c_anim.prototype.stop = function() {
+	assert(this.start_time !== null);
+	this.elapsed_time += g_t - this.start_time;
+	this.start_time = null;
+	if (this.elapsed_time >= this.end_time) {
+		this.elapsed_time = 0; 
+		this.index = null;
+	}
+	remove_drawable(this);
+	remove_updatable(this);
+	stop_stop_sets(this.stop_set);
+	start_start_sets(this.start_set);
+	return this;
+};
+
+c_anim.prototype.reset = function() {
+	assert("reset not implemented");
+};
+
+c_anim.prototype.starts = function(...os) {
+	os.forEach(o => {
+		if (!this.start_set.includes(o)) this.start_set.push(o);
+	});
+	return this;
+};
+
+c_anim.prototype.stops = function(...os) {
+	os.forEach(o => {
+		if (!this.stop_set.includes(o)) this.stop_set.push(o)
+	});
+	return this;
+};
+
+c_anim.prototype.started = function() {
+	return updatables.includes(this);
+};
+
+c_anim.prototype.stopped = function() {
+	return !updatables.includes(this);
+};
+
+window.g_anim = function(start_times, images, user_calibration = 0, z_index) {
+	return new c_anim(start_times, images, user_calibration, z_index);
+};
 
 
 

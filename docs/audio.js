@@ -49,7 +49,7 @@ c_music.prototype.load = async function() {
   this.on_ready();
 };
 
-c_music.prototype.start = function() {
+c_music.prototype.start = function() { // start from begining or from paused 
   assert(this.time_started  === null);
   assert(this.audio_buffer  !== null);
   assert(this.buffer_source === null);
@@ -72,7 +72,7 @@ c_music.prototype.time = function() {
 	return this.time_played + g_audio_context.currentTime - this.time_started;
 };
 
-c_music.prototype.stop = function() {
+c_music.prototype.stop = function() {  // pause
   assert(this.time_started !== null);
   this.time_played += g_audio_context.currentTime - this.time_started;
   this.time_started = null;

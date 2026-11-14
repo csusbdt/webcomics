@@ -566,47 +566,53 @@ addEventListener('load', requestAnimationFrame.bind(null, animation_loop));
 
 
 
-
-// The last start time is the animation end time.
-function c_anim(start_times, images, user_calibration = 0, z_index = g_z) {
-	assert(Array.isArray(start_times)                         );
-	assert(Array.isArray(images)                              );
-	assert(start_times.length === images.length + 1 );
-	this.end_time     = start_times[start_times.length - 1];
-	this.start_times  = start_times;
-	this.images       = images;
-	this.z_index      = z_index;
-	this.latency      =            // graphics render faster than audio
+function c_anim(image_times, images, user_calibration = 0, z_index = g_z) {
+	assert(Array.isArray(image_times)               );
+	assert(Array.isArray(images)                    );
+	assert(image_times.length === images.length + 1 );
+	this.latency      =        // graphics render faster than audio
 		g_audio_context.baseLatency   + 
 		g_audio_context.outputLatency + 
 		user_calibration;
-	this.elapsed_time  = 0;    // amount of time played out from the source buffer
+	// The last start time is the animation end time.
+	this.image_times  = image_times;
+	this.images       = images;
+	this.z_index      = z_index;
 	this.start_time    = null; // the audio context time when current playout started
 	this.index         = null; // null means render time of first image not yet reached
-	this.start_set     = [];
-	this.stop_set      = [];
 }
 
-c_anim.prototype.start = function() {
-	assert(this.start_time === null);
-	this.start_time = g_t;
+c_anim.prototype.start = function() { // start from begining or from paused 
+	if (this.ended()) return;
+	assert(this.stopped());
+	this.start_time = g_t + this.latency;
 	add_updatable(this);
-	return this;
 };
 
-c_anim.prototype.update = function(dt) {
+c_anim.prototype.update = function() {
 	if (this.index === null) {
-		if (this.start_time + this.delay + this.start_times[0] < g_t) return;
-		this.index = 0;
-		add_drawable(this);
+		// first image has not yet been drawn
+		if (g_t >= this.start_time + this.image_times[0]) {
+			// time to start drawing
+			this.index = 0;
+			add_drawable(this);
+		} else {
+			// not yet time to draw first image
+			return;
+		}
 	}
-	while (this.start_time + this.latency + this.start_times[this.index + 1] < g_t) {
-		assert(this.index < this.images.length);
+	// advance index if the next start time has been reached
+	assert(this.index < this.images.length);
+	const next_image_draw_time = this.start_time + this.image_times[this.index + 1];
+	if (g_t >= next_image_draw_time) {
 		++this.index;
 		dirty = true;
-		if (this.index === this.images.length) { 
+		if (this.index === this.images.length) {
 			// we reached the end
-			this.stop(); 
+			this.start_time = null;
+			remove_drawable(this);
+			remove_updatable(this);
+			// leave index alone to stay in ended state
 			return; 
 		}
 	}
@@ -614,6 +620,7 @@ c_anim.prototype.update = function(dt) {
 
 c_anim.prototype.draw = function(ctx) {
 	assert(this.index !== null);
+	assert(this.index < this.images.length);
 	const image = this.images[this.index];
 	if (Array.isArray(image)) {
 		image.forEach(image => ctx.drawImage(image, 0, 0));
@@ -622,49 +629,35 @@ c_anim.prototype.draw = function(ctx) {
 	}
 };
 
-c_anim.prototype.stop = function() {
-	assert(this.start_time !== null);
-	this.elapsed_time += g_t - this.start_time;
-	this.start_time = null;
-	if (this.elapsed_time >= this.end_time) {
-		this.elapsed_time = 0; 
-		this.index = null;
+c_anim.prototype.stop = function() {  // freeze on current image
+	if (this.ended()) return;
+	if (this.index === this.images.length - 1) { // on the last image
+		this.index = this.images.length;         // go into ended state
 	}
-	remove_drawable(this);
+	this.start_time = null;
 	remove_updatable(this);
-	stop_stop_sets(this.stop_set);
-	start_start_sets(this.start_set);
-	return this;
 };
 
-c_anim.prototype.reset = function() {
-	assert("reset not implemented");
-};
-
-c_anim.prototype.starts = function(...os) {
-	os.forEach(o => {
-		if (!this.start_set.includes(o)) this.start_set.push(o);
-	});
-	return this;
-};
-
-c_anim.prototype.stops = function(...os) {
-	os.forEach(o => {
-		if (!this.stop_set.includes(o)) this.stop_set.push(o)
-	});
-	return this;
+c_anim.prototype.ended = function(ctx) {  // finished playing and not startable
+	return this.index === this.images.length;
 };
 
 c_anim.prototype.started = function() {
-	return updatables.includes(this);
+	return this.start_time !== null;
 };
 
 c_anim.prototype.stopped = function() {
-	return !updatables.includes(this);
+	return this.start_time === null;
 };
 
-window.g_anim = function(start_times, images, user_calibration = 0, z_index) {
-	return new c_anim(start_times, images, user_calibration, z_index);
+c_anim.prototype.reset = function() {  // return to begining state
+	if (this.started()) this.stop();
+	assert(this.start_time === null);
+	this.index = null;
+};
+
+window.g_anim = function(image_times, images, user_calibration = 0, z_index) {
+	return new c_anim(image_times, images, user_calibration, z_index);
 };
 
 

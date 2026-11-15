@@ -1,6 +1,6 @@
 import "./scripts/init.js";
 import "./scripts/image.js";
-import "./scripts/audio.js";
+import "./scripts/sfx.js";
 import "./scripts/touch.js";
 
 g_image(g_el_capitan).start();

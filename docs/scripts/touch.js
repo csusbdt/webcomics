@@ -61,18 +61,18 @@ window.g_click_test = (images, p) => {
 	return (pixel[0] + pixel[1] + pixel[2] + pixel[3] !== 0);
 };
 
-function c_touch(images, sfx, ) {
+function c_touch(images, sfx = null) {
 	if (!Array.isArray(images)) images = [ images ];
 	this.images       = images;
 	this.start_set    = [];
 	this.stop_set     = [];
-	this.sfx          = null;
+	this.sfx          = sfx;
 }
 
-c_touch.prototype.set_sfx = function(sfx) {
-	this.sfx = sfx;
-	return this;
-};
+// c_touch.prototype.set_sfx = function(sfx) {
+// 	this.sfx = sfx;
+// 	return this;
+// };
 
 c_touch.prototype.starts = function(...os) {
 	os.forEach(o => this.start_set.push(o));
@@ -102,9 +102,9 @@ c_touch.prototype.touch = function(p) {
 	for (let i = 0; i < this.images.length; ++i) {
 		const image = this.images[i];
 		if (g_click_test(this.images[i], p)) {
-			clear_touchables();
-			stop_stop_sets(this.stop_set);
-			start_start_sets(this.start_set);
+			g_clear_touchables();
+			g_stop_stop_sets(this.stop_set);
+			g_start_start_sets(this.start_set);
 			return true;
 		}
 	}

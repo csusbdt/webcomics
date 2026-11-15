@@ -1,33 +1,43 @@
-import "../init.js";
-import "../anim.js";
+import "../scripts/init.js"  ;
+import "../scripts/state.js" ;
+import "../scripts/image.js" ;
+import "../scripts/music.js" ;
+import "../scripts/sfx.js"   ;
+import "../scripts/touch.js" ;
+import "../scripts/once.js"  ;
+import "../scripts/loop.js"  ;
+import "../scripts/anim.js"  ;
+
+const i_1 = g_image(g_1);
+const i_2 = g_image(g_2);
 
 //[0, 1.4586666666666668,3.458666666666667,4.36,4.978666666666666,5.458666666666667,7.410666666666667,7.9493333333333345,8.418666666666667,9.349333333333334,10.330666666666666,11.298666666666666,11.84,12.349333333333334,13.770666666666667,14.770666666666667,16.290666666666667,17.858666666666664,18.439999999999998,18.62933333333333,18.890666666666664,19.410666666666668,19.930666666666667,20.370666666666665,20.599999999999998,21.338666666666665,22.378666666666668,23.378666666666668,23.890666666666664,24.370666666666665,25.36,25.869333333333334,26.418666666666667,27.32,27.829333333333334,28.359999999999996,29.949333333333332,31.858666666666668,32.89866666666667,33.45866666666667,33.989333333333335,34.480000000000004,34.970666666666666,35.45866666666667,36.42933333333334,37.53066666666667,38.49866666666667,38.989333333333335,39.52,40.61066666666667,40.92,41.13066666666667,41.61866666666667,42.53066666666667,42.88,43.09066666666667,43.45066666666667,44.56,45.09066666666667,45.61066666666667,46.45866666666667,46.970666666666666,47.45066666666667,47.989333333333335,48.49866666666667,49.93866666666667,50.970666666666666,51.970666666666666,52.46933333333334,52.989333333333335,53.50933333333334,54.01066666666667,54.45066666666667,55.53066666666667,56,56.2,56.45066666666667,56.89866666666667,57.080000000000005,57.480000000000004,58.42933333333334,58.760000000000005,58.96,59.33866666666667,59.57066666666667,60.44,61,61.46933333333334,61.909333333333336,62.41066666666667,63.41866666666667,63.909333333333336,64.12,64.37066666666666,64.74933333333334,64.93066666666667,65.25066666666667,65.44,65.85866666666666,66.38933333333334,67.34933333333333,67.84,70.89066666666668,72,73.21066666666667,74.21066666666667,75.17066666666668,76.10933333333334,76.61066666666667,77.13866666666667,78.08,79,79.97866666666667,80.89066666666668,81.90933333333334,82.4,82.92,83.44,84.4,85.33866666666667,86.21066666666667,86.45066666666666,86.68,87.62933333333334,88.44,88.69066666666667,89.73066666666666,90.45866666666667,90.69866666666667,91.2,91.60000000000001,92.09866666666667,92.58933333333334,93.12,93.61066666666667,93.76,94.29866666666668,94.57066666666667,95.01866666666668,95.52,95.72,96.18933333333334,96.45866666666667,96.88000000000001,97.42933333333333,97.94933333333334,98.29866666666668,98.48,98.97066666666667,99.33066666666667,99.49866666666667,99.89066666666668,100.25066666666667,100.41066666666667,100.82933333333334,101.18933333333334,101.36,101.61066666666667,101.78933333333333,102.04,102.29066666666667,102.54933333333334,102.8,103.02933333333334,103.26933333333334,103.76,105.29866666666668,106.4,106.90933333333334,107.89066666666668,108.4,108.89866666666667,110.21066666666667,110.76,111.13866666666667,112.36,112.98933333333333,113.46933333333334,113.97866666666667,114.45866666666667,114.96000000000001,115.44,115.89066666666668,116.42933333333333,118.28,118.74933333333334,120.17866666666667,120.38933333333334,120.76,121.28,121.77866666666667,122.28,123.18933333333334,124.25866666666666,124.44000000000001,125.73866666666667,126.18933333333332,126.69866666666668,127.17866666666667,128.61866666666666,129.69066666666666,130.11999999999998,130.57066666666665,131.05866666666665,132.0293333333333,132.32,132.51999999999998,133.0293333333333,133.57866666666666,134.4693333333333,135.01066666666665,135.50933333333333];
 const start_times = [0,3.898666666666667,4.989333333333331,5.498666666666665,6.458666666666666,7.370666666666665,7.930666666666667];
 const images = [];
 let elapsed = 0;
 for (let i = 0; i < start_times.length - 1; ++i) {
-  if (i % 2 === 0) images.push(i_1); else images.push(i_2);
+  if (i % 2 === 0) images.push(g_1); else images.push(g_2);
 }
 const anim = g_anim(start_times, images);
 
-const vols = g_objs([i_vol_0, i_vol_1, i_vol_2, i_vol_3, i_vol_4, i_vol_5, i_vol_6]);
+const vols = g_images([ g_vol_0, g_vol_1, g_vol_2, g_vol_3, g_vol_4, g_vol_5, g_vol_6 ]);
 
-const back          = g_obj(i_back);
-const play_opened   = g_obj(i_play_2);
-const pause_opened  = g_obj(i_pause_2);
+const back          = g_image(g_back   );
+const play_opened   = g_image(g_play_2 );
+const pause_opened  = g_image(g_pause_2);
 
-const play_opening  = g_once(g_objs([i_play_1]));
-const play_closing  = g_once(g_objs([i_play_1, i_blank]));
-const pause_opening = g_once(g_objs([i_pause_1]));
-const pause_closing = g_once(g_objs([i_pause_1, i_blank]));
+const play_opening  = g_once([ g_play_1           ]);
+const play_closing  = g_once([ g_play_1 , g_blank ]);
+const pause_opening = g_once([ g_pause_1          ]);
+const pause_closing = g_once([ g_pause_1, g_blank ]);
 
-const waiting       = g_loop(g_objs([i_wait_0, i_wait_1, i_wait_2, i_wait_3]));
+const waiting       = g_loop([ g_wait_0, g_wait_1, g_wait_2, g_wait_3 ]);
 
-const t_back        = g_touch(i_back   );
-const t_play        = g_touch(i_play_2 );
-const t_pause       = g_touch(i_pause_2);
-const t_vol_up      = g_touch(i_vol_up );
-const t_vol_dn      = g_touch(i_vol_dn );
+const t_back        = g_touch(g_back   );
+const t_play        = g_touch(g_play_2 );
+const t_pause       = g_touch(g_pause_2);
+const t_vol_up      = g_touch(g_vol_up );
+const t_vol_dn      = g_touch(g_vol_dn );
 
 let vol_i = null;
 
@@ -39,11 +49,11 @@ vol_i = get("vol_i");
 vols[vol_i].start();
 
 const start_touchables = _ => {
-  if (back.started()) t_back.start();
-  if (vol_i + 1 < vols.length) t_vol_up.start();
-  if (vol_i     > 0          ) t_vol_dn.start();
-  if (play_opened.started()) t_play.start();
-  else if (pause_opened.started()) t_pause.start();
+  if (back.started()              ) t_back   .start();
+  if (vol_i + 1 < vols.length     ) t_vol_up .start();
+  if (vol_i     > 0               ) t_vol_dn .start();
+  if (play_opened.started()       ) t_play   .start();
+  else if (pause_opened.started() ) t_pause  .start();
 };
 
 t_back.starts(go_to.bind(null, "/"));
@@ -57,14 +67,13 @@ const on_ready = _ => {
 
 const on_ended = _ => {
   anim.reset();
-  clear_touchables();
+  g_clear_touchables();
   pause_opened.stop();
   pause_closing.start();
   start_touchables();
 };
 
 const music = g_music("./el_capitan.mp3", on_ready, on_ended);
-music.load();
 
 const max_play_bop_gain  = .6;
 const max_play_thud_gain = .8;
@@ -113,35 +122,4 @@ if (location.search.indexOf("d") !== -1) {
   });
 }
 
-
-
-/*
-let lookAhead = 25.0; // How frequently to check (in milliseconds)
-let scheduleAheadTime = 0.1; // How far ahead to schedule audio (in seconds)
-let nextNoteTime = 0.0; // When the next note is due
-let tempo = 120.0; // Beats per minute
-
-function scheduler() {
-  // While there are notes to play before the next interval, schedule them
-  while (nextNoteTime < audioCtx.currentTime + scheduleAheadTime) {
-    scheduleNote(nextNoteTime);
-    advanceNote();
-  }
-}
-
-function advanceNote() {
-  // Calculate time between beats based on tempo
-  const secondsPerBeat = 60.0 / tempo;
-  nextNoteTime += secondsPerBeat; // Advance the timeline precisely
-}
-
-function scheduleNote(time) {
-  // Assume 'clickBuffer' was pre-loaded via decodeAudioData
-  playSoundAt(clickBuffer, time);
-}
-
-// Start the scheduler loop on the main thread
-// Web Audio API handles the precise delivery on its own thread!
-setInterval(scheduler, lookAhead);
-
-*/
+music.load();

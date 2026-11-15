@@ -37,6 +37,9 @@ function resume_audio() {
 
 window.addEventListener('pointerup', resume_audio, { capture: true });
 
+window.g_play_success   = null;
+window.g_play_fail      = null;
+
 // window.addEventListener('pageshow', e => { 
 // 	if (e.persisted) window.location.reload();
 // });
@@ -208,74 +211,6 @@ window.g_start_start_sets = function(...start_sets) {
 	});
 }
 
-// window.g_add_drawable = function(o) {
-// 	if (!('z_index' in o)) throw new Error(o);
-// 	if (g_drawables.includes(o)) return;
-// 	dirty = true;
-// 	for (let i = g_drawables.length; i > 0; --i) {
-// 		if (o.z_index >= g_drawables[i - 1].z_index) {
-// 			g_drawables.splice(i, 0, o);
-// 			return;
-// 		}
-// 	}
-// 	g_drawables.unshift(o);
-// };
-
-// const remove_drawable = function(o) {
-// 	const i = g_drawables.indexOf(o);
-// 	if (i !== -1) {
-// 		g_drawables.splice(i, 1);
-// 		dirty = true;
-// 	}
-// };
-
-// window.clear_drawables = function() {
-// 	g_drawables.length = 0;
-// 	dirty = true;
-// };
-
-
-///////////////////////////////////////////////////////////////////////////////
-//
-// main
-//
-///////////////////////////////////////////////////////////////////////////////
-
-// const click_test_canvas  = document.createElement('canvas');
-// click_test_canvas.width  = g_canvas.width  / 4;
-// click_test_canvas.height = g_canvas.height / 4;
-// const click_test_ctx     = click_test_canvas.getContext("2d", { willReadFrequently: true });
-
-// // Convert screen coords to 1920x1020 canvas coords.
-// const canvas_coords = e => {
-//     const canvas_rect = g_canvas.getBoundingClientRect();
-// 	const canvas_width_in_screen_pixels  = canvas_rect.width;
-// 	const canvas_height_in_screen_pixels = canvas_rect.height;
-// 	const x_in_screen_pixels = e.offsetX;
-// 	const y_in_screen_pixels = e.offsetY;
-// 	const mouse_x_in_canvas_pixels = x_in_screen_pixels / canvas_width_in_screen_pixels  * g_canvas.width;
-// 	const mouse_y_in_canvas_pixels = y_in_screen_pixels / canvas_height_in_screen_pixels * g_canvas.height;
-// 	return {
-// 		x: mouse_x_in_canvas_pixels,
-// 		y: mouse_y_in_canvas_pixels
-// 	};
-// };
-
-// // pixel-based click detection
-// window.g_click_test = (images, p) => {
-// 	if (images === null) return false;
-// 	if (!Array.isArray(images)) images = [images];
-// 	const w = click_test_canvas.width;
-// 	const h = click_test_canvas.height;
-//     click_test_ctx.clearRect(0, 0, w, h);
-// 	for (let i = 0; i < images.length; ++i) {
-// 		click_test_ctx.drawImage(images[i], 0, 0, w, h);
-// 	}
-// 	const int_x = Math.floor(p.x / 4);
-//     const int_y = Math.floor(p.y / 4);
-// 	const pixel = click_test_ctx.getImageData(int_x, int_y, 1, 1).data;
-// 	return (pixel[0] + pixel[1] + pixel[2] != 0);
-// };
 
 window.g_t = g_audio_context.currentTime;
 let previous_time = g_t;

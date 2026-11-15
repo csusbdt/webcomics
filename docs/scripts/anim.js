@@ -19,7 +19,7 @@ c_anim.prototype.start = function() { // start from begining or from paused
 	if (this.ended()) return;
 	assert(this.stopped());
 	this.start_time = g_t + this.latency;
-	add_updatable(this);
+	g_add_updatable(this);
 };
 
 c_anim.prototype.update = function() {
@@ -28,7 +28,7 @@ c_anim.prototype.update = function() {
 		if (g_t >= this.start_time + this.image_times[0]) {
 			// time to start drawing
 			this.index = 0;
-			add_drawable(this);
+			g_add_drawable(this);
 		} else {
 			// not yet time to draw first image
 			return;
@@ -43,8 +43,8 @@ c_anim.prototype.update = function() {
 		if (this.index === this.images.length) {
 			// we reached the end
 			this.start_time = null;
-			remove_drawable(this);
-			remove_updatable(this);
+			g_remove_drawable(this);
+			g_remove_updatable(this);
 			// leave index alone to stay in ended state
 			return; 
 		}
@@ -68,7 +68,7 @@ c_anim.prototype.stop = function() {  // freeze on current image
 		this.index = this.images.length;         // go into ended state
 	}
 	this.start_time = null;
-	remove_updatable(this);
+	g_remove_updatable(this);
 };
 
 c_anim.prototype.ended = function(ctx) {  // finished playing and not startable

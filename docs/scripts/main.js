@@ -1,3 +1,6 @@
+import "./init.js";
+import "./state.js";
+import "./obj.js";
 import "./audio.js";
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -23,6 +26,65 @@ window.g_start_touches = null; // If not null, called when touchables are cleare
 // helpers
 //
 /////////////////////////////////////////////////////////////////////////////////////
+
+// window.addEventListener('pageshow', e => { 
+// 	if (e.persisted) window.location.reload();
+// });
+
+// document.addEventListener('visibilitychange', _ => {
+// 	if (document.visibilityState === 'visible') window.location.reload();
+// });
+
+const events = ["pagehide", "pageshow", "load"];
+
+const eventLogger = (event) => {
+  switch (event.type) {
+    case "pagehide":
+    case "pageshow": {
+      let isPersisted = event.persisted ? "persisted" : "not persisted";
+      console.log(`Event: ${event.type} - ${isPersisted}`);
+      break;
+    }
+    default:
+      console.log(`Event: ${event.type}`);
+      break;
+  }
+};
+
+events.forEach((eventName) => window.addEventListener(eventName, eventLogger));
+
+
+
+// async function request_wake_lock() {
+// 	if ("wakeLock" in navigator) {
+// 		try {
+// 			await navigator.wakeLock.request('screen');
+// 		}
+// 	}
+	
+// }
+
+
+// function reinitializePage() {
+//   console.log('Page is active again — running fresh initialization logic...');
+//   // Put your data fetching, state reset, or UI update code here
+	
+// }
+
+// // Triggers when restored from iOS/Chrome Back/Forward cache
+// window.addEventListener('pageshow', (event) => {
+//   if (event.persisted) {
+//     reinitializePage();
+//   }
+// });
+
+// // Triggers when switching back to the tab or resuming the browser app
+// document.addEventListener('visibilitychange', () => {
+//   if (document.visibilityState === 'visible') {
+//     reinitializePage();
+//   }
+// });
+
 
 // to eliminate flash of black
 ctx.fillStyle = bg_color;

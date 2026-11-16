@@ -12,7 +12,27 @@ window.g_delay         = 1/8;  // default duration of a c_delay instance
 window.g_dur           = 1/8;  // default duration of a frame of animation
 window.g_start_touches = null; // If not null, called when touchables are cleared.
 
-window.g_audio_context = new (window.AudioContext || window.webkitAudioContext)();
+window.g_play_success   = null;
+window.g_play_fail      = null;
+
+window.g_audio_context  = new (window.AudioContext || window.webkitAudioContext)();
+window.g_t              = 0;
+console.log(g_audio_context.state);
+
+function resume_audio() {
+	console.log(g_audio_context.state);
+	if (g_audio_context.state === "suspended" || g_audio_context.state === "interrupted") {
+		g_audio_context.resume().then(() => {
+			// iOS blocked auto-resume; wait for the next user touch
+			console.log(g_audio_context.state);
+			unlock_audio_on_touch();
+		}).catch(() => {
+			// iOS blocked auto-resume; wait for the next user touch
+			console.log("iOS blocked auto-resume");
+			unlock_audio_on_touch();
+		});
+	}
+}
 
 function unlock_audio_on_touch() {
   const resume_handler = () => {
@@ -26,27 +46,38 @@ function unlock_audio_on_touch() {
   window.addEventListener('touchstart' , resume_handler, { once: true });
 }
 
-function resume_audio() {
-	if (g_audio_context.state === "suspended" || g_audio_context.state === "interrupted") {
-		g_audio_context.resume().catch(() => {
-			// iOS blocked auto-resume; wait for the next user touch
-			setTimeout(() => unlock_audio_on_touch());
-		});
+let loop_id       = null;
+let previous_time = 0;
+
+function animation_loop() {
+	g_t           = g_audio_context.currentTime;
+	const dt      = Math.min(g_t - previous_time, g_dur);
+	previous_time = g_t;
+	g_updatables.forEach(o => o.update(dt));
+	if (dirty) {
+		ctx.fillStyle = bg_color;
+		ctx.fillRect(0, 0, g_canvas.width, g_canvas.height);
+		g_drawables.forEach(o => o.draw(ctx));
+		dirty = false;	
 	}
+	loop_id = requestAnimationFrame(animation_loop);
 }
+
+addEventListener('load', _ => loop_id = requestAnimationFrame(animation_loop));
 
 window.addEventListener('pointerup', resume_audio, { capture: true });
 
-window.g_play_success   = null;
-window.g_play_fail      = null;
+// returning via browser Back/Forward cache (bfcache)
+window.addEventListener('pageshow', e => { 
+	if (e.persisted) window.location.reload();
+});
 
-// window.addEventListener('pageshow', e => { 
-// 	if (e.persisted) window.location.reload();
-// });
+// TODO: instead of reloading, try to restart audio and maybe adjust for anim loop
 
-// document.addEventListener('visibilitychange', _ => {
-// 	if (document.visibilityState === 'visible') window.location.reload();
-// });
+// switching tabs or returning to Chrome from another iOS app
+document.addEventListener('visibilitychange', _ => {
+	if (document.visibilityState === 'visible') window.location.reload();
+});
 
 // const events = ["pagehide", "pageshow", "load"];
 
@@ -212,21 +243,6 @@ window.g_start_start_sets = function(...start_sets) {
 }
 
 
-window.g_t = g_audio_context.currentTime;
-let previous_time = g_t;
 
-function animation_loop() {
-	g_t      = g_audio_context.currentTime;
-	const dt = g_t - previous_time;
-	g_updatables.slice().forEach(o => o.update(dt));
-	previous_time = g_t;
-	if (dirty) {
-		ctx.fillStyle = bg_color;
-		ctx.fillRect(0, 0, g_canvas.width, g_canvas.height);
-		g_drawables.forEach(o => o.draw(ctx));
-		dirty = false;	
-	}
-	requestAnimationFrame(animation_loop);
-}
 
-addEventListener('load', requestAnimationFrame.bind(null, animation_loop));
+

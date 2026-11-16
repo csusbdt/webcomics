@@ -62,7 +62,8 @@ waiting.start();
 
 const on_ready = _ => {
   waiting.stop();
-  play_opening.start();
+  play_opened.start();
+  start_touchables();
 };
 
 const on_ended = _ => {

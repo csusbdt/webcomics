@@ -32,12 +32,14 @@ c_music.prototype.start = function() { // start from begining or from paused
   assert(this.audio_buffer  !== null);
   assert(this.buffer_source === null);
   assert(this.offset + this.time_played < this.duration);
+  request_wake_lock();
   this.buffer_source = g_audio_context.createBufferSource();
   this.buffer_source.onended = _ => {
 	this.time_started  = null;
 	this.time_played   = 0;
     this.buffer_source = null;
 	this.on_ended();
+	release_wake_lock();
   };
   this.buffer_source.buffer = this.audio_buffer;
   this.buffer_source.connect(this.gain_node);
@@ -58,6 +60,7 @@ c_music.prototype.stop = function() {  // pause
   this.buffer_source.stop();
   this.buffer_source.disconnect();
   this.buffer_source = null;
+  release_wake_lock();
 };
 
 c_music.prototype.set_gain = function(gain) {

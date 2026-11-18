@@ -1,11 +1,24 @@
+//import "./clock.js";
+
+window.assert = (condition, message) => {
+	if (!condition) {
+		throw new Error(message || "Assertion failed");
+	}
+};
+
+//window.artificial_delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 window.g_updatables    = [];
 window.g_drawables     = [];
 window.g_touchables    = [];
 
-window.dirty           = true;
+//window.dirty           = true;
 const ctx              = g_canvas.getContext('2d', { alpha: false });
 const bg_color         = window.getComputedStyle(document.body).backgroundColor;
+
+// to eliminate flash of black
+ctx.fillStyle = bg_color;
+ctx.fillRect(0, 0, g_canvas.width, g_canvas.height);
 
 window.g_z             = 10;   // default z-index for ordering draw operations
 window.g_delay         = 1/8;  // default duration of a c_delay instance
@@ -15,133 +28,153 @@ window.g_start_touches = null; // If not null, called when touchables are cleare
 window.g_play_success   = null;
 window.g_play_fail      = null;
 
-window.g_audio_context  = new (window.AudioContext || window.webkitAudioContext)();
-window.g_t              = 0;
-console.log(g_audio_context.state);
+///////////////////////////////////////////////////////////////////////////////////
+//
+// clock 
+//
+///////////////////////////////////////////////////////////////////////////////////
 
-function resume_audio() {
-	console.log(g_audio_context.state);
-	if (g_audio_context.state === "suspended" || g_audio_context.state === "interrupted") {
-		g_audio_context.resume().then(() => {
-			// iOS blocked auto-resume; wait for the next user touch
-			console.log(g_audio_context.state);
-			unlock_audio_on_touch();
-		}).catch(() => {
-			// iOS blocked auto-resume; wait for the next user touch
-			console.log("iOS blocked auto-resume");
-			unlock_audio_on_touch();
-		});
-	}
+let is_paused            = false;
+let is_unlocked          = false;
+let fallback_start       = performance.now();
+let accumulated_fallback = 0;
+
+window.g_audio_context  = new window.AudioContext();
+
+// set capture to true to run before ui event handlers 
+window.addEventListener('pointerup', async () => {
+  is_unlocked = true;
+  is_paused   = false;
+  if (g_audio_context.state === "suspended" || g_audio_context.state === "interrupted") {
+	  await g_audio_context.resume();
+  }
+}, { capture: true, once: true });
+
+window.g_get_current_time = function () {
+  if (is_unlocked) {
+    return g_audio_context.currentTime;
+  }
+  if (is_paused) {
+    return accumulated_fallback;
+  }
+  return accumulated_fallback + (performance.now() - fallback_start) / 1000;
+};
+
+async function pause() {
+  console.log("pause");
+  if (is_paused) {
+	  return;
+  }
+  is_paused = true;
+  if (!is_unlocked) {
+    accumulated_fallback += (performance.now() - fallback_start) / 1000;
+  } else {
+    assert(g_audio_context.state === 'running');
+	await g_audio_context.suspend();
+  }
 }
 
-function unlock_audio_on_touch() {
-  const resume_handler = () => {
-    if (g_audio_context && g_audio_context.state !== 'running') {
-      g_audio_context.resume();
+async function resume() {
+  console.log("resume");
+  if (!is_paused) return;
+  is_paused = false;
+  if (is_unlocked) {
+	  await g_audio_context.resume();
+  } else {
+	  fallback_start = performance.now();
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////////
+//
+// If music is playing, request a wait lock 
+//
+// TODO: test on phone
+//
+///////////////////////////////////////////////////////////////////////////////////
+
+let wake_lock = null;
+
+window.request_wake_lock = async function() {
+  if ('wakeLock' in navigator && document.visibilityState === 'visible') {
+    try {
+      wake_lock = await navigator.wakeLock.request('screen');
+    } catch (err) {
+      // assumption: Low Power Mode is active
     }
-    window.removeEventListener('pointerdown', resume_handler);
-    window.removeEventListener('touchstart' , resume_handler);
-  };
-  window.addEventListener('pointerdown', resume_handler, { once: true });
-  window.addEventListener('touchstart' , resume_handler, { once: true });
-}
+  }
+};
+
+window.release_wake_lock = function() {
+  if (wake_lock !== null) {
+    wake_lock.release().catch(() => {});
+    wake_lock = null;
+  }
+};
+
+///////////////////////////////////////////////////////////////////////////////////
+//
+// animation loop 
+//
+///////////////////////////////////////////////////////////////////////////////////
 
 let loop_id       = null;
 let previous_time = 0;
+window.g_dirty    = true;
 
 function animation_loop() {
-	g_t           = g_audio_context.currentTime;
-	const dt      = Math.min(g_t - previous_time, g_dur);
-	previous_time = g_t;
+	let t = g_get_current_time();
+	const dt      = Math.min(t - previous_time, g_dur);
+	previous_time = t;
 	g_updatables.forEach(o => o.update(dt));
-	if (dirty) {
+	if (g_dirty) {
 		ctx.fillStyle = bg_color;
 		ctx.fillRect(0, 0, g_canvas.width, g_canvas.height);
 		g_drawables.forEach(o => o.draw(ctx));
-		dirty = false;	
+		g_dirty = false;	
 	}
 	loop_id = requestAnimationFrame(animation_loop);
 }
 
+// TODO: do in different event.
 addEventListener('load', _ => loop_id = requestAnimationFrame(animation_loop));
 
-window.addEventListener('pointerup', resume_audio, { capture: true });
+window.addEventListener('resize', () => g_dirty = true);
 
-// returning via browser Back/Forward cache (bfcache)
-window.addEventListener('pageshow', e => { 
-	if (e.persisted) window.location.reload();
-});
-
-// TODO: instead of reloading, try to restart audio and maybe adjust for anim loop
-
-// switching tabs or returning to Chrome from another iOS app
 document.addEventListener('visibilitychange', _ => {
-	if (document.visibilityState === 'visible') window.location.reload();
+	// assumption: switching tabs or returning from another app
+	if (document.visibilityState === 'visible') {
+		resume();
+	} else {
+		assert(document.visibilityState === 'hidden');
+		pause();
+	}
 });
 
-// const events = ["pagehide", "pageshow", "load"];
+// TODO: figure out what to do with animation loop on pageshow, pagehide
 
-// const eventLogger = (event) => {
-//   switch (event.type) {
-//     case "pagehide":
-//     case "pageshow": {
-//       let isPersisted = event.persisted ? "persisted" : "not persisted";
-//       console.log(`Event: ${event.type} - ${isPersisted}`);
-//       break;
-//     }
-//     default:
-//       console.log(`Event: ${event.type}`);
-//       break;
-//   }
-// };
-
-// events.forEach((eventName) => window.addEventListener(eventName, eventLogger));
-
-
-
-// async function request_wake_lock() {
-// 	if ("wakeLock" in navigator) {
-// 		try {
-// 			await navigator.wakeLock.request('screen');
-// 		}
-// 	}
-	
-// }
-
-
-// function reinitializePage() {
-//   console.log('Page is active again — running fresh initialization logic...');
-//   // Put your data fetching, state reset, or UI update code here
-	
-// }
-
-// // Triggers when restored from iOS/Chrome Back/Forward cache
-// window.addEventListener('pageshow', (event) => {
-//   if (event.persisted) {
-//     reinitializePage();
-//   }
-// });
-
-// // Triggers when switching back to the tab or resuming the browser app
-// document.addEventListener('visibilitychange', () => {
-//   if (document.visibilityState === 'visible') {
-//     reinitializePage();
-//   }
-// });
-
-
-// to eliminate flash of black
-ctx.fillStyle = bg_color;
-ctx.fillRect(0, 0, g_canvas.width, g_canvas.height);
-
-// to insert artificial delays in sy
-//window.delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-window.assert = (condition, message) => {
-	if (!condition) {
-		throw new Error(message || "Assertion failed");
+window.addEventListener('pageshow', e => { 
+	// assumption: returning via browser Back/Forward cache (bfcache)
+	if (e.persisted) {
+		resume();
 	}
-};
+});
+
+window.addEventListener('pagehide', (event) => {
+  // User is navigating away from the document or closing it.
+  if (event.persisted) {
+    // the page is being frozen in the back/forward cache (bfcache) 
+    // and might be restored later via pageshow
+	if (!is_unlocked) {
+	  // i think need to adjust accumulated_fallback
+	} else {
+	  // audio context is frozen, so leave alone
+	}
+  } else {
+    g_audio_context.close().catch(() => {});
+	cancelAnimation(loop_id);
+  }
+});
 
 window.go_to = page => {
 	if (location.pathname.indexOf("/webcomics") === 0) {
@@ -158,7 +191,7 @@ window.go_to = page => {
 window.g_add_drawable = function(o) {
 	if (!('z_index' in o)) throw new Error(o);
 	if (g_drawables.includes(o)) return;
-	dirty = true;
+	g_dirty = true;
 	for (let i = g_drawables.length; i > 0; --i) {
 		if (o.z_index >= g_drawables[i - 1].z_index) {
 			g_drawables.splice(i, 0, o);
@@ -170,14 +203,14 @@ window.g_add_drawable = function(o) {
 
 // window.g_clear_drawables = function() {
 // 	g_drawables.length = 0;
-// 	dirty = true;
+// 	g_dirty = true;
 // };
 
 window.g_remove_drawable = function(o) {
 	const i = g_drawables.indexOf(o);
 	if (i !== -1) {
 		g_drawables.splice(i, 1);
-		dirty = true;
+		g_dirty = true;
 	}
 };
 

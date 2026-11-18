@@ -17,3 +17,10 @@ Characteristics
 - Supports music and synchronization with music
 - minimal core library easy to understand (canvasapp.js)
 
+notes:
+
+~~~
+git reset --hard HEAD~1
+~~~
+
+

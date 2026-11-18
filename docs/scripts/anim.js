@@ -18,14 +18,14 @@ function c_anim(image_times, images, user_calibration = 0, z_index = g_z) {
 c_anim.prototype.start = function() { // start from begining or from paused 
 	if (this.ended()) return;
 	assert(this.stopped());
-	this.start_time = g_t + this.latency;
+	this.start_time = g_get_current_time() + this.latency;
 	g_add_updatable(this);
 };
 
 c_anim.prototype.update = function() {
 	if (this.index === null) {
 		// first image has not yet been drawn
-		if (g_t >= this.start_time + this.image_times[0]) {
+		if (g_get_current_time() >= this.start_time + this.image_times[0]) {
 			// time to start drawing
 			this.index = 0;
 			g_add_drawable(this);
@@ -37,9 +37,9 @@ c_anim.prototype.update = function() {
 	// advance index if the next start time has been reached
 	assert(this.index < this.images.length);
 	const next_image_draw_time = this.start_time + this.image_times[this.index + 1];
-	if (g_t >= next_image_draw_time) {
+	if (g_get_current_time() >= next_image_draw_time) {
 		++this.index;
-		dirty = true;
+		g_dirty = true;
 		if (this.index === this.images.length) {
 			// we reached the end
 			this.start_time = null;

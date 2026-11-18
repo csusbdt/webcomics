@@ -25,7 +25,7 @@ c_number.prototype.inc = function() {
 
 c_number.prototype.start = function() {
 	add_drawable(this);
-	dirty = true;
+	g_dirty = true;
 	return this;
 };
 

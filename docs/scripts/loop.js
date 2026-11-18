@@ -50,7 +50,7 @@ c_loop.prototype.update = function(dt) {
 	if (this.elapsed_time >= duration) {
 		this.elapsed_time -= duration;
 		++this.index;
-		dirty = true;
+		g_dirty = true;
 		if (this.index === this.images.length) {
 			this.index = 0;
 		}

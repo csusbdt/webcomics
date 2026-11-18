@@ -55,7 +55,7 @@ c_once.prototype.update = function(dt) {
 	if (this.elapsed_time >= duration) {
 		this.elapsed_time -= duration;
 		++this.index;
-		dirty = true;
+		g_dirty = true;
 		if (this.index === this.images.length) {
 			this.index = null;
 			this.elapsed_time = null;

@@ -18,7 +18,6 @@ c_image.prototype.draw = function(ctx) {
 
 c_image.prototype.start = function() {
 	g_add_drawable(this);
-	dirty = true;
 	return this;
 };
 

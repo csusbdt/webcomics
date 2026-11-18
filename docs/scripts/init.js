@@ -1,5 +1,3 @@
-//import "./clock.js";
-
 window.assert = (condition, message) => {
 	if (!condition) {
 		throw new Error(message || "Assertion failed");
@@ -12,11 +10,10 @@ window.g_updatables    = [];
 window.g_drawables     = [];
 window.g_touchables    = [];
 
-//window.dirty           = true;
 const ctx              = g_canvas.getContext('2d', { alpha: false });
 const bg_color         = window.getComputedStyle(document.body).backgroundColor;
 
-// to eliminate flash of black
+// to eliminate flash of black:
 ctx.fillStyle = bg_color;
 ctx.fillRect(0, 0, g_canvas.width, g_canvas.height);
 
@@ -25,8 +22,8 @@ window.g_delay         = 1/8;  // default duration of a c_delay instance
 window.g_dur           = 1/8;  // default duration of a frame of animation
 window.g_start_touches = null; // If not null, called when touchables are cleared.
 
-window.g_play_success   = null;
-window.g_play_fail      = null;
+//window.g_sfx_success   = null;
+//window.g_sfx_fail      = null;
 
 ///////////////////////////////////////////////////////////////////////////////////
 //
@@ -41,14 +38,21 @@ let accumulated_fallback = 0;
 
 window.g_audio_context  = new window.AudioContext();
 
-// set capture to true to run before ui event handlers 
-window.addEventListener('pointerup', async () => {
-  is_unlocked = true;
-  is_paused   = false;
-  if (g_audio_context.state === "suspended" || g_audio_context.state === "interrupted") {
-	  await g_audio_context.resume();
+async function start_audio_context() {
+  if (g_audio_context.state === "running") {
+	  is_unlocked = true;
+	  return;
   }
-}, { capture: true, once: true });
+  try {
+	await g_audio_context.resume();
+    is_unlocked = true;
+	window.removeEventListener('pointerup', start_audio_context);  
+  } catch (err) {
+	console.warn("failed to unlock audio context", err);
+  }
+} 
+
+window.addEventListener('pointerup', start_audio_context, { capture: true });
 
 window.g_get_current_time = function () {
   if (is_unlocked) {
@@ -56,40 +60,51 @@ window.g_get_current_time = function () {
   }
   if (is_paused) {
     return accumulated_fallback;
+  } else {
+    return accumulated_fallback + (performance.now() - fallback_start) / 1000;
   }
-  return accumulated_fallback + (performance.now() - fallback_start) / 1000;
 };
 
-async function pause() {
-  console.log("pause");
+async function pause_clock() {
   if (is_paused) {
-	  return;
+	if (g_audio_context.state === 'running') {
+	  is_pause = false;
+	} else {
+		return;
+	}
   }
-  is_paused = true;
-  if (!is_unlocked) {
-    accumulated_fallback += (performance.now() - fallback_start) / 1000;
+  if (is_unlocked) {
+	try {
+		await g_audio_context.suspend();
+	} catch(err) {
+	  console.warn("failed to suspend audio context", err);
+	}
+    is_paused = true;
   } else {
-    assert(g_audio_context.state === 'running');
-	await g_audio_context.suspend();
+    accumulated_fallback += (performance.now() - fallback_start) / 1000;
+    is_paused = true;
   }
 }
 
-async function resume() {
-  console.log("resume");
+async function resume_clock() {
   if (!is_paused) return;
-  is_paused = false;
   if (is_unlocked) {
+	try {
 	  await g_audio_context.resume();
+	  is_paused = false;
+	} catch(err) {
+	  console.warn("failed to resume audio context", err);
+	  window.addEventListener('pointerup', start_audio_context, { capture: true });
+	}
   } else {
-	  fallback_start = performance.now();
+	fallback_start = performance.now();
+	is_paused = false;
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
 //
 // If music is playing, request a wait lock 
-//
-// TODO: test on phone
 //
 ///////////////////////////////////////////////////////////////////////////////////
 
@@ -123,9 +138,9 @@ let previous_time = 0;
 window.g_dirty    = true;
 
 function animation_loop() {
-	let t = g_get_current_time();
-	const dt      = Math.min(t - previous_time, g_dur);
-	previous_time = t;
+	let current_time = g_get_current_time();
+	const dt         = Math.min(current_time - previous_time, g_dur);
+	previous_time = current_time;
 	g_updatables.forEach(o => o.update(dt));
 	if (g_dirty) {
 		ctx.fillStyle = bg_color;
@@ -137,42 +152,49 @@ function animation_loop() {
 }
 
 // TODO: do in different event.
-addEventListener('load', _ => loop_id = requestAnimationFrame(animation_loop));
+//addEventListener('load', _ => loop_id = requestAnimationFrame(animation_loop));
 
 window.addEventListener('resize', () => g_dirty = true);
 
 document.addEventListener('visibilitychange', _ => {
-	// assumption: switching tabs or returning from another app
-	if (document.visibilityState === 'visible') {
-		resume();
-	} else {
-		assert(document.visibilityState === 'hidden');
-		pause();
+  if (document.visibilityState === 'visible') {
+    resume_clock();
+	if (loop_id === null) loop_id = requestAnimationFrame(animation_loop);
+  } else {
+    if (loop_id !== null) {
+	  cancelAnimationFrame(loop_id);
+	  loop_id = null;
 	}
+    pause_clock();
+  }
 });
 
-// TODO: figure out what to do with animation loop on pageshow, pagehide
-
-window.addEventListener('pageshow', e => { 
-	// assumption: returning via browser Back/Forward cache (bfcache)
-	if (e.persisted) {
-		resume();
-	}
+window.addEventListener('pageshow', e => {
+  // if (event.persisted)
+  if (g_audio_context.state !== "running") resume_clock();
+  if (loop_id === null) loop_id = requestAnimationFrame(animation_loop);
 });
 
 window.addEventListener('pagehide', (event) => {
-  // User is navigating away from the document or closing it.
-  if (event.persisted) {
-    // the page is being frozen in the back/forward cache (bfcache) 
-    // and might be restored later via pageshow
-	if (!is_unlocked) {
-	  // i think need to adjust accumulated_fallback
+  if (g_audio_context.state !== "running") resume_clock();
+  if (event.persisted) { // page stored into the bfcache
+	if (is_unlocked) {
+	  // browser will freeze audio clock
+	  // i believe no need for user tap to unfeeze
 	} else {
-	  // audio context is frozen, so leave alone
+	  if (loop_id !== null) {
+	    cancelAnimation(loop_id);
+	    loop_id = null;
+	  }
+	  pause_clock();
 	}
-  } else {
+  } else { // page not stored in bfcache
+	if (loop_id !== null) {
+	  cancelAnimation(loop_id);
+	  loop_id = null;
+	}
     g_audio_context.close().catch(() => {});
-	cancelAnimation(loop_id);
+	is_unlocked = false;
   }
 });
 
